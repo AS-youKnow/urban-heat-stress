@@ -1,0 +1,36 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# Generated output files (too large for git)
+heat_grid.csv
+heat_grid_clustered.csv
+xgb_lst_model.json
+scenario_results.csv
+scenario_results_summary.csv
+optimization_results.csv
+
+# Temporary files
+fix_encoding.py
+unicode_report.txt
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Logs
+*.log
