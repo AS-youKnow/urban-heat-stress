@@ -49,35 +49,80 @@ log = logging.getLogger("Module1")
 
 # ─── GEE INITIALISATION ───────────────────────────────────────────────────────
 
-def init_gee(project: str = CFG.gee_project) -> bool:
+def init_gee(project: str = None) -> bool:
     """
     Attempt to authenticate and initialise Google Earth Engine.
 
-    Returns True if successful, False if GEE is unavailable (triggers
-    synthetic-data fallback in the caller).
+    Tries three strategies in priority order:
+      1. Streamlit Secrets  — for cloud (Streamlit Community Cloud) deployment.
+         Reads [gee] section from st.secrets with 'service_account' and
+         'private_key' fields (JSON key stored as a TOML secret).
+      2. Local JSON key file — if CFG.gee_service_account_key path is set.
+      3. Application Default Credentials — after running:
+             earthengine authenticate
+         in the terminal. Works for local development.
 
-    Notes
-    -----
-    • On first run in a new environment call: ``earthengine authenticate``
-      in the terminal before executing this script.
-    • If a service-account JSON key is present at CFG.service_key_path,
-      that is used instead of interactive authentication.
+    Returns
+    -------
+    True  if GEE initialised successfully
+    False if all strategies fail (triggers synthetic-data fallback)
     """
     try:
         import ee  # noqa: PLC0415
+    except ImportError:
+        log.warning("earthengine-api not installed. Using synthetic data.")
+        return False
 
+    gee_project = project or CFG.gee_project
+
+    # ── Strategy 1: Streamlit Cloud Secrets ─────────────────────────────────
+    try:
+        import streamlit as st  # noqa: PLC0415
+        if hasattr(st, "secrets") and "gee" in st.secrets:
+            import json, tempfile, os
+            gee_secret = dict(st.secrets["gee"])
+            # Write to a temp file so ee.ServiceAccountCredentials can read it
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".json", delete=False
+            ) as tmp:
+                json.dump(gee_secret, tmp)
+                tmp_path = tmp.name
+            credentials = ee.ServiceAccountCredentials(
+                gee_secret.get("client_email", ""),
+                tmp_path,
+            )
+            ee.Initialize(credentials=credentials, project=gee_project)
+            os.unlink(tmp_path)   # clean up temp file
+            log.info("GEE initialised via Streamlit Secrets service account.")
+            return True
+    except Exception as e:
+        log.debug("Streamlit Secrets GEE auth skipped: %s", e)
+
+    # ── Strategy 2: Local service-account JSON key file ──────────────────────
+    if CFG.gee_service_account_key and CFG.gee_service_account_key != "None":
         try:
-            ee.Initialize(project=project)
-            log.info("GEE initialised with project '%s'.", project)
+            import json
+            with open(CFG.gee_service_account_key) as f:
+                key_data = json.load(f)
+            credentials = ee.ServiceAccountCredentials(
+                key_data["client_email"],
+                CFG.gee_service_account_key,
+            )
+            ee.Initialize(credentials=credentials, project=gee_project)
+            log.info("GEE initialised via local service account key.")
             return True
-        except ee.EEException:
-            log.warning("GEE init failed — attempting re-auth...")
-            ee.Authenticate()
-            ee.Initialize(project=project)
-            log.info("GEE re-authenticated and initialised.")
-            return True
+        except Exception as e:
+            log.debug("Local service account auth failed: %s", e)
 
-    except Exception as exc:  # catches ImportError, auth failures, network errors
+    # ── Strategy 3: Application Default Credentials (earthengine authenticate)
+    try:
+        ee.Initialize(project=gee_project)
+        log.info("GEE initialised via Application Default Credentials.")
+        return True
+    except ee.EEException:
+        log.warning("GEE ADC not found. Run: earthengine authenticate")
+        return False
+    except Exception as exc:
         log.warning("GEE unavailable (%s). Switching to synthetic data.", exc)
         return False
 

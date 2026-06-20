@@ -20,8 +20,16 @@ import numpy as np
 import pandas as pd
 
 # ─── 1. GOOGLE EARTH ENGINE SETTINGS ──────────────────────────────────────────
-GEE_PROJECT_ID = "your-gee-project-id"   # ← Replace with your GCP project ID
-GEE_SERVICE_ACCOUNT_KEY = None            # Path to JSON key file (optional)
+# Step 1: Create a GCP project at https://console.cloud.google.com
+# Step 2: Enable the Earth Engine API for your project
+# Step 3: Replace the project ID below with your actual GCP project ID
+GEE_PROJECT_ID = "your-gee-project-id"   # ← REPLACE THIS
+
+# For local use:  run  `earthengine authenticate`  in terminal (one-time setup)
+# For Streamlit Cloud: set up a Service Account (see README for instructions)
+# Path to local service account JSON key (leave as None to use earthengine authenticate)
+GEE_SERVICE_ACCOUNT_KEY = None           # e.g. r"C:\keys\gee-key.json"
+
 
 # ─── 2. WORLD REGIONS — Major cities across all continents ────────────────────
 # Format: "City, Country": [west, south, east, north]  (WGS-84 lon/lat)
@@ -287,10 +295,10 @@ def get_synthetic_dataframe(n_points: int = 2000,
 # ─── 13. CONSOLIDATED SETTINGS OBJECT ─────────────────────────────────────────
 class CFG:
     """Namespace-style config object for convenient dot-access."""
-    gee_project        = GEE_PROJECT_ID
-    roi_bbox           = DEFAULT_ROI_BBOX
-    default_region     = DEFAULT_REGION
-    world_regions      = WORLD_REGIONS
+    gee_project            = GEE_PROJECT_ID
+    gee_service_account_key= str(GEE_SERVICE_ACCOUNT_KEY)
+    default_region         = DEFAULT_REGION
+    world_regions          = WORLD_REGIONS
     landsat            = LANDSAT_COLLECTION
     start_date         = START_DATE
     end_date           = END_DATE

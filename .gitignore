@@ -5,6 +5,12 @@ __pycache__/
 *.pyd
 .Python
 
+# SECRETS — never commit these!
+.streamlit/secrets.toml
+*.json.key
+*service_account*.json
+
+
 # Virtual environments
 venv/
 env/
