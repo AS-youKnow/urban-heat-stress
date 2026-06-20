@@ -23,9 +23,71 @@ import pandas as pd
 GEE_PROJECT_ID = "your-gee-project-id"   # ← Replace with your GCP project ID
 GEE_SERVICE_ACCOUNT_KEY = None            # Path to JSON key file (optional)
 
-# ─── 2. DEFAULT REGION OF INTEREST (Delhi NCR bounding box) ───────────────────
-# Coordinates: [west, south, east, north] (WGS-84 longitude/latitude)
-DEFAULT_ROI_BBOX = [76.84, 28.40, 77.35, 28.88]   # Delhi NCR
+# ─── 2. WORLD REGIONS — Major cities across all continents ────────────────────
+# Format: "City, Country": [west, south, east, north]  (WGS-84 lon/lat)
+WORLD_REGIONS = {
+    # ── ASIA ────────────────────────────────────────────────────────────────────
+    "Delhi, India"           : [76.84, 28.40, 77.35, 28.88],
+    "Mumbai, India"          : [72.77, 18.85, 73.10, 19.30],
+    "Kolkata, India"         : [88.20, 22.45, 88.48, 22.72],
+    "Chennai, India"         : [80.18, 12.90, 80.35, 13.18],
+    "Bangalore, India"       : [77.45, 12.85, 77.75, 13.10],
+    "Hyderabad, India"       : [78.35, 17.30, 78.60, 17.55],
+    "Ahmedabad, India"       : [72.48, 22.95, 72.70, 23.15],
+    "Jaipur, India"          : [75.72, 26.82, 75.95, 27.02],
+    "Tokyo, Japan"           : [139.60, 35.55, 139.90, 35.80],
+    "Beijing, China"         : [116.20, 39.80, 116.60, 40.10],
+    "Shanghai, China"        : [121.35, 31.10, 121.65, 31.40],
+    "Karachi, Pakistan"      : [66.90, 24.78, 67.20, 25.05],
+    "Lahore, Pakistan"       : [74.25, 31.40, 74.50, 31.65],
+    "Dhaka, Bangladesh"      : [90.30, 23.68, 90.50, 23.88],
+    "Bangkok, Thailand"      : [100.45, 13.65, 100.70, 13.90],
+    "Jakarta, Indonesia"     : [106.72, -6.30, 107.00, -6.05],
+    "Manila, Philippines"    : [120.95, 14.50, 121.15, 14.70],
+    "Singapore"              : [103.65, 1.22,  104.00, 1.48],
+    "Seoul, South Korea"     : [126.85, 37.45, 127.15, 37.65],
+    "Riyadh, Saudi Arabia"   : [46.55, 24.55, 46.85, 24.80],
+    "Dubai, UAE"             : [55.15, 25.05, 55.45, 25.30],
+    "Tehran, Iran"           : [51.25, 35.60, 51.55, 35.80],
+    "Kabul, Afghanistan"     : [69.08, 34.45, 69.30, 34.65],
+    "Colombo, Sri Lanka"     : [79.82, 6.82,  80.00, 7.00],
+    # ── AFRICA ──────────────────────────────────────────────────────────────────
+    "Cairo, Egypt"           : [31.15, 29.95, 31.45, 30.15],
+    "Lagos, Nigeria"         : [3.30,  6.40,  3.55,  6.60],
+    "Nairobi, Kenya"         : [36.70, -1.40, 36.92, -1.20],
+    "Johannesburg, S.Africa" : [27.95, -26.30,28.15, -26.10],
+    "Khartoum, Sudan"        : [32.45, 15.50, 32.65, 15.65],
+    "Kinshasa, DR Congo"     : [15.25, -4.45, 15.45, -4.25],
+    "Addis Ababa, Ethiopia"  : [38.68, 8.95,  38.88, 9.10],
+    "Accra, Ghana"           : [-0.30, 5.50,  -0.10, 5.65],
+    # ── EUROPE ──────────────────────────────────────────────────────────────────
+    "London, UK"             : [-0.25, 51.40, 0.05,  51.60],
+    "Paris, France"          : [2.25,  48.80, 2.45,  48.95],
+    "Madrid, Spain"          : [-3.80, 40.35, -3.60, 40.50],
+    "Rome, Italy"            : [12.40, 41.80, 12.60, 41.95],
+    "Athens, Greece"         : [23.65, 37.90, 23.85, 38.05],
+    "Istanbul, Turkey"       : [28.85, 40.95, 29.15, 41.15],
+    "Moscow, Russia"         : [37.50, 55.65, 37.80, 55.85],
+    # ── AMERICAS ────────────────────────────────────────────────────────────────
+    "New York, USA"          : [-74.10, 40.60, -73.85, 40.80],
+    "Los Angeles, USA"       : [-118.45,33.95, -118.15,34.15],
+    "Chicago, USA"           : [-87.75, 41.75, -87.55, 41.95],
+    "Houston, USA"           : [-95.55, 29.65, -95.25, 29.85],
+    "Mexico City, Mexico"    : [-99.25, 19.35, -99.05, 19.50],
+    "Sao Paulo, Brazil"      : [-46.75, -23.65,-46.55,-23.45],
+    "Rio de Janeiro, Brazil" : [-43.30, -23.00,-43.10,-22.85],
+    "Buenos Aires, Argentina": [-58.55, -34.70,-58.35,-34.55],
+    "Bogota, Colombia"       : [-74.20,  4.55, -74.00,  4.75],
+    "Lima, Peru"             : [-77.15, -12.15,-76.95,-11.95],
+    # ── AUSTRALIA / OCEANIA ─────────────────────────────────────────────────────
+    "Sydney, Australia"      : [150.95,-33.95, 151.25,-33.75],
+    "Melbourne, Australia"   : [144.85,-37.90, 145.10,-37.70],
+}
+
+# Default ROI — Delhi NCR (used as fallback)
+DEFAULT_ROI_BBOX = WORLD_REGIONS["Delhi, India"]
+DEFAULT_REGION   = "Delhi, India"
+
 
 # ─── 3. IMAGERY SETTINGS ──────────────────────────────────────────────────────
 LANDSAT_COLLECTION   = "LANDSAT/LC08/C02/T1_L2"    # Landsat 8 C2 L2
@@ -109,18 +171,22 @@ BETA_SENSITIVITY = 0.4
 DEFAULT_BUDGET_N = 50    # Default number of target cells to optimise
 
 # ─── 12. SYNTHETIC DATA GENERATOR (offline / demo mode) ───────────────────────
-def get_synthetic_dataframe(n_points: int = 2000, seed: int = 42) -> pd.DataFrame:
+def get_synthetic_dataframe(n_points: int = 2000,
+                             seed: int = 42,
+                             bbox: list = None,
+                             region_name: str = None) -> pd.DataFrame:
     """
     Generate a realistic synthetic dataset that mirrors the schema produced
-    by Module 1 (GEE ingestion).  Used when GEE credentials are unavailable
+    by Module 1 (GEE ingestion). Used when GEE credentials are unavailable
     or for rapid prototyping / CI testing.
 
     Parameters
     ----------
-    n_points : int
-        Number of grid-cell rows to synthesise.
-    seed : int
-        Random seed for reproducibility.
+    n_points    : int  — Number of grid-cell rows to synthesise.
+    seed        : int  — Random seed for reproducibility.
+    bbox        : list — [west, south, east, north] bounding box.
+                         Defaults to DEFAULT_ROI_BBOX (Delhi NCR) when None.
+    region_name : str  — Human-readable city name (used to adjust climate).
 
     Returns
     -------
@@ -130,11 +196,39 @@ def get_synthetic_dataframe(n_points: int = 2000, seed: int = 42) -> pd.DataFram
     """
     rng = np.random.default_rng(seed)
 
-    # Spatial grid within Delhi NCR bounding box
-    lon = rng.uniform(DEFAULT_ROI_BBOX[0], DEFAULT_ROI_BBOX[2], n_points)
-    lat = rng.uniform(DEFAULT_ROI_BBOX[1], DEFAULT_ROI_BBOX[3], n_points)
+    # Use provided bbox or fall back to default
+    active_bbox = bbox if bbox is not None else DEFAULT_ROI_BBOX
 
-    # ── Feature synthesis with realistic urban correlations ──────────────────
+    # Spatial grid within selected bounding box
+    lon = rng.uniform(active_bbox[0], active_bbox[2], n_points)
+    lat = rng.uniform(active_bbox[1], active_bbox[3], n_points)
+
+    # ── Climate-aware LST baseline ────────────────────────────────────────────
+    # Centre latitude of the selected city
+    centre_lat = (active_bbox[1] + active_bbox[3]) / 2.0
+    abs_lat    = abs(centre_lat)
+
+    # Base temperature by latitude zone (realistic climatology):
+    #   Equatorial (0-15°)  → 32-40°C  e.g. Lagos, Jakarta, Singapore
+    #   Tropical   (15-30°) → 35-45°C  e.g. Delhi, Cairo, Riyadh (peak summer)
+    #   Sub-tropical(30-40°)→ 28-40°C  e.g. Tokyo, Beijing, Los Angeles
+    #   Temperate  (40-55°) → 20-32°C  e.g. London, Paris, New York
+    #   Cold       (55°+)   → 10-22°C  e.g. Moscow
+    if abs_lat < 15:
+        lst_base_val = 36.0   # Equatorial — hot & humid
+    elif abs_lat < 30:
+        lst_base_val = 40.0   # Tropical / arid — hottest zone
+    elif abs_lat < 40:
+        lst_base_val = 34.0   # Sub-tropical
+    elif abs_lat < 55:
+        lst_base_val = 26.0   # Temperate
+    else:
+        lst_base_val = 18.0   # Cold / subarctic
+
+    # Southern Hemisphere cities tend to have lower peak summer temps
+    if centre_lat < 0:
+        lst_base_val -= 3.0
+
     # NDVI: vegetation index [−1, 1]; lower in dense urban cores
     ndvi = rng.beta(2, 5, n_points) * 0.8 - 0.1          # skewed toward lower values
 
@@ -156,10 +250,9 @@ def get_synthetic_dataframe(n_points: int = 2000, seed: int = 42) -> pd.DataFram
     lulc_weights = [0.05, 0.03, 0.05, 0.15, 0.55, 0.10, 0.07]
     lulc = rng.choice(lulc_choices, size=n_points, p=lulc_weights)
 
-    # LST (Celsius): physically motivated formula + noise
-    # Higher LST where: high NDBI, low NDVI, high built fraction
+    # LST (Celsius): physically motivated formula + city-climate baseline
     lst_base = (
-        38.0
+        lst_base_val
         - 12.0 * ndvi       # vegetated areas are cooler
         + 8.0  * ndbi       # built surfaces are hotter
         + 0.00003 * pop_density
@@ -167,12 +260,15 @@ def get_synthetic_dataframe(n_points: int = 2000, seed: int = 42) -> pd.DataFram
         + rng.normal(0, 1.5, n_points)   # measurement noise
     )
     # Urban heat island: slight spatial clustering effect
-    lst_celsius = np.clip(lst_base, 28.0, 62.0)
+    # Clip range varies by climate zone
+    lst_min_clip = max(5.0,  lst_base_val - 20.0)
+    lst_max_clip = min(70.0, lst_base_val + 22.0)
+    lst_celsius = np.clip(lst_base, lst_min_clip, lst_max_clip)
 
     df = pd.DataFrame({
         "longitude"     : lon,
         "latitude"      : lat,
-        TARGET_COL      : lst_celsius,          # "LST_Celsius"
+        TARGET_COL      : lst_celsius,
         "NDVI"          : ndvi,
         "NDBI"          : ndbi,
         "Pop_Density"   : pop_density,
@@ -180,8 +276,11 @@ def get_synthetic_dataframe(n_points: int = 2000, seed: int = 42) -> pd.DataFram
         "LULC"          : lulc.astype(float),
     })
 
-    # Flag as synthetic so downstream modules can log a warning
-    df.attrs["source"] = "synthetic"
+    # Store metadata
+    df.attrs["source"]      = "synthetic"
+    df.attrs["region"]      = region_name or "Unknown"
+    df.attrs["bbox"]        = active_bbox
+    df.attrs["lst_baseline"]= round(lst_base_val, 1)
     return df
 
 
@@ -190,6 +289,8 @@ class CFG:
     """Namespace-style config object for convenient dot-access."""
     gee_project        = GEE_PROJECT_ID
     roi_bbox           = DEFAULT_ROI_BBOX
+    default_region     = DEFAULT_REGION
+    world_regions      = WORLD_REGIONS
     landsat            = LANDSAT_COLLECTION
     start_date         = START_DATE
     end_date           = END_DATE

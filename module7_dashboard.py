@@ -273,15 +273,17 @@ HOTSPOT_COLORS = {
 
 @st.cache_data(show_spinner=False, ttl=3600)
 def cached_pipeline(use_gee: bool, budget_n: int,
-                    alpha: float, beta: float) -> dict:
+                    alpha: float, beta: float,
+                    region_name: str = "Delhi, India") -> dict:
     """
     Run the complete ML pipeline and cache the result.
-
-    Streamlit's @st.cache_data decorator ensures this only re-runs when
-    the inputs change (or the TTL expires).
+    Re-runs automatically when any input parameter changes.
     """
+    from config import WORLD_REGIONS
+    bbox = WORLD_REGIONS.get(region_name, CFG.roi_bbox)
+
     # Module 1 — Ingestion
-    df = run_ingestion(use_gee=use_gee)
+    df = run_ingestion(use_gee=use_gee, roi_bbox=bbox, region_name=region_name)
 
     # Module 2 — Clustering
     df = run_hotspot_analysis(df)
@@ -310,6 +312,7 @@ def cached_pipeline(use_gee: bool, budget_n: int,
         "shap_results" : shap_results,
         "sim_results"  : sim_results,
         "opt_results"  : opt_results,
+        "region_name"  : region_name,
     }
 
 
@@ -625,7 +628,7 @@ def render_sidebar() -> dict:
         st.markdown("## ⚙️ Pipeline Controls")
         st.divider()
 
-        # Data source
+        # ── Data source ───────────────────────────────────────────────────────
         data_source = st.radio(
             "📡 Data Source",
             options=["🌐 Google Earth Engine (Live)", "🧪 Synthetic Demo"],
@@ -639,6 +642,77 @@ def render_sidebar() -> dict:
                     icon="ℹ️")
 
         st.divider()
+
+        # ── World Region Selector ─────────────────────────────────────────────
+        st.markdown("### 🌍 Select City / Region")
+
+        # Group cities by continent for the selectbox
+        from config import WORLD_REGIONS
+        all_regions = list(WORLD_REGIONS.keys())
+
+        # Continent headers as disabled separators
+        continents = {
+            "── ASIA ──────────────": [
+                r for r in all_regions
+                if any(c in r for c in [", India","Japan","China","Pakistan",
+                    "Bangladesh","Thailand","Indonesia","Philippines",
+                    "Singapore","Korea","Saudi","UAE","Iran","Afghanistan",
+                    "Sri Lanka"])
+            ],
+            "── AFRICA ────────────": [
+                r for r in all_regions
+                if any(c in r for c in ["Egypt","Nigeria","Kenya","Africa",
+                    "Sudan","Congo","Ethiopia","Ghana"])
+            ],
+            "── EUROPE ────────────": [
+                r for r in all_regions
+                if any(c in r for c in ["UK","France","Spain","Italy",
+                    "Greece","Turkey","Russia"])
+            ],
+            "── AMERICAS ──────────": [
+                r for r in all_regions
+                if any(c in r for c in ["USA","Mexico","Brazil",
+                    "Argentina","Colombia","Peru"])
+            ],
+            "── AUSTRALIA ─────────": [
+                r for r in all_regions
+                if "Australia" in r
+            ],
+        }
+
+        # Build flat ordered list with continent headers
+        ordered = []
+        for header, cities in continents.items():
+            ordered.append(header)
+            ordered.extend(cities)
+
+        selected_raw = st.selectbox(
+            "City",
+            options=ordered,
+            index=ordered.index("Delhi, India") if "Delhi, India" in ordered else 1,
+            help="Select any city — the map, data, and analysis will shift to that region",
+            label_visibility="collapsed",
+        )
+
+        # Skip if user selected a continent header
+        region_name = selected_raw if selected_raw in WORLD_REGIONS else "Delhi, India"
+
+        # Show selected city bbox
+        bbox = WORLD_REGIONS[region_name]
+        st.markdown(
+            f"""
+            <div style='background:#1c2333; border:1px solid #30363d;
+                        border-radius:8px; padding:10px 14px; margin-top:6px;
+                        font-size:0.8rem; color:#8b949e;'>
+            <b style='color:#00d4aa;'>📍 {region_name}</b><br>
+            Lat: {bbox[1]:.2f}° – {bbox[3]:.2f}°<br>
+            Lon: {bbox[0]:.2f}° – {bbox[2]:.2f}°
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        st.divider()
         st.markdown("### 🎯 Optimization Budget")
         budget_n = st.slider(
             "Number of target grid cells (N)",
@@ -649,15 +723,15 @@ def render_sidebar() -> dict:
         st.divider()
         st.markdown("### ⚖️ Optimization Weights")
         alpha_val = st.slider(
-            "α — Severity Weight",
+            "Severity Weight",
             min_value=0.0, max_value=1.0, value=float(CFG.alpha), step=0.05,
-            help="Higher α prioritises cells with extreme baseline temperatures",
+            help="Higher value prioritises cells with extreme baseline temperatures",
         )
         beta_val = 1.0 - alpha_val
         st.markdown(
             f"<p style='font-size:0.85rem; color:#8b949e;'>"
-            f"β — Sensitivity Weight: <b style='color:#00d4aa'>{beta_val:.2f}</b>"
-            f" (auto = 1 − α)</p>",
+            f"Sensitivity Weight: <b style='color:#00d4aa'>{beta_val:.2f}</b>"
+            f" (auto = 1 - alpha)</p>",
             unsafe_allow_html=True,
         )
 
@@ -675,12 +749,13 @@ def render_sidebar() -> dict:
         st.divider()
         st.markdown(
             "<p style='font-size:0.75rem; color:#8b949e; text-align:center;'>"
-            "Urban Heat Stress AI System<br>ISRO Research Project · 2025–26</p>",
+            "Urban Heat Stress AI System<br>ISRO Research Project 2025-26</p>",
             unsafe_allow_html=True,
         )
 
     return {
         "use_gee"      : use_gee,
+        "region_name"  : region_name,
         "budget_n"     : budget_n,
         "alpha"        : alpha_val,
         "beta"         : beta_val,
@@ -1013,13 +1088,14 @@ def main():
 
     # ── Pipeline execution ────────────────────────────────────────────────────
     if "pipeline_data" not in st.session_state or settings["run_pipeline"]:
-        with st.spinner("🔄 Running AI/ML pipeline — please wait…"):
+        with st.spinner("Running AI/ML pipeline for " + settings.get("region_name", "selected city") + " — please wait..."):
             try:
                 data = cached_pipeline(
-                    use_gee  = settings["use_gee"],
-                    budget_n = settings["budget_n"],
-                    alpha    = settings["alpha"],
-                    beta     = settings["beta"],
+                    use_gee     = settings["use_gee"],
+                    budget_n    = settings["budget_n"],
+                    alpha       = settings["alpha"],
+                    beta        = settings["beta"],
+                    region_name = settings["region_name"],
                 )
                 st.session_state["pipeline_data"] = data
                 st.session_state["settings"]      = settings

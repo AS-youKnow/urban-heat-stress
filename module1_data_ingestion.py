@@ -335,21 +335,25 @@ def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
 
 # ─── PUBLIC ENTRY POINT ───────────────────────────────────────────────────────
 
-def run_ingestion(use_gee: bool = True, roi_bbox: list = None) -> pd.DataFrame:
+def run_ingestion(use_gee: bool = True,
+                  roi_bbox: list = None,
+                  region_name: str = None) -> pd.DataFrame:
     """
     End-to-end data ingestion pipeline.
 
     Parameters
     ----------
-    use_gee  : bool  — If False, skip GEE and return synthetic data directly.
-    roi_bbox : list  — [west, south, east, north] in WGS-84.
-                       Defaults to CFG.roi_bbox (Delhi NCR) when None.
+    use_gee     : bool  — If False, skip GEE and return synthetic data.
+    roi_bbox    : list  — [west, south, east, north] in WGS-84.
+                          Defaults to CFG.roi_bbox (Delhi NCR) when None.
+    region_name : str   — Human-readable city name for climate adjustment.
 
     Returns
     -------
     pd.DataFrame — cleaned, analysis-ready grid dataframe
     """
-    bbox = roi_bbox or CFG.roi_bbox
+    bbox   = roi_bbox or CFG.roi_bbox
+    region = region_name or CFG.default_region
 
     if use_gee and init_gee():
         try:
@@ -359,21 +363,21 @@ def run_ingestion(use_gee: bool = True, roi_bbox: list = None) -> pd.DataFrame:
             df  = clean_dataframe(df)
             log.info("Source: Google Earth Engine (live data).")
             df.attrs["source"] = "gee"
+            df.attrs["region"] = region
         except Exception as exc:
             log.error("GEE pipeline failed: %s — falling back to synthetic data.", exc)
-            df = get_synthetic_dataframe()
-            df.attrs["source"] = "synthetic"
+            df = get_synthetic_dataframe(bbox=bbox, region_name=region)
     else:
-        log.info("GEE disabled or unavailable. Using synthetic data.")
-        df = get_synthetic_dataframe()
-        df.attrs["source"] = "synthetic"
+        log.info("GEE disabled — generating synthetic data for '%s'.", region)
+        df = get_synthetic_dataframe(bbox=bbox, region_name=region)
 
     # Persist to disk for downstream modules
     df.to_csv(CFG.grid_csv, index=False)
-    log.info("Grid data saved → %s  (%d rows × %d cols)",
+    log.info("Grid data saved -> %s  (%d rows x %d cols)",
              CFG.grid_csv, len(df), df.shape[1])
 
     return df
+
 
 
 # ─── INTERACTIVE ROI HELPER ───────────────────────────────────────────────────
