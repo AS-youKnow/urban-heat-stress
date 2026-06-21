@@ -23,7 +23,7 @@ import pandas as pd
 # Step 1: Create a GCP project at https://console.cloud.google.com
 # Step 2: Enable the Earth Engine API for your project
 # Step 3: Replace the project ID below with your actual GCP project ID
-GEE_PROJECT_ID = "your-gee-project-id"   # ← REPLACE THIS
+GEE_PROJECT_ID = "urban-heat-isro"       # ← GCP Project ID (set)
 
 # For local use:  run  `earthengine authenticate`  in terminal (one-time setup)
 # For Streamlit Cloud: set up a Service Account (see README for instructions)
@@ -297,6 +297,7 @@ class CFG:
     """Namespace-style config object for convenient dot-access."""
     gee_project            = GEE_PROJECT_ID
     gee_service_account_key= str(GEE_SERVICE_ACCOUNT_KEY)
+    roi_bbox               = DEFAULT_ROI_BBOX
     default_region         = DEFAULT_REGION
     world_regions          = WORLD_REGIONS
     landsat            = LANDSAT_COLLECTION

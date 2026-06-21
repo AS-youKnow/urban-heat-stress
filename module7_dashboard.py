@@ -79,17 +79,495 @@ matplotlib.use("Agg")
 warnings.filterwarnings("ignore")
 logging.basicConfig(level=logging.WARNING)
 
-# ─── PAGE CONFIGURATION ───────────────────────────────────────────────────────
+# ─── 3D LANDING PAGE ─────────────────────────────────────────────────────────
+
+def render_landing_page():
+    """Full-screen 3D animated landing page with rotating Earth globe."""
+    st.components.v1.html("""
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Urban Heat Stress AI</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background: #020810;
+    font-family: 'Segoe UI', sans-serif;
+    overflow: hidden;
+    width: 100vw; height: 100vh;
+  }
+  #canvas-container {
+    position: fixed; top:0; left:0;
+    width:100%; height:100%;
+    z-index: 0;
+  }
+  .overlay {
+    position: fixed; top:0; left:0;
+    width:100%; height:100%;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+  }
+  .badge {
+    background: rgba(0,212,170,0.12);
+    border: 1px solid rgba(0,212,170,0.4);
+    border-radius: 50px;
+    padding: 6px 18px;
+    color: #00d4aa;
+    font-size: 12px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 22px;
+    animation: fadeInDown 1s ease forwards;
+    opacity: 0;
+  }
+  .title {
+    font-size: clamp(28px, 5vw, 56px);
+    font-weight: 800;
+    text-align: center;
+    line-height: 1.15;
+    margin-bottom: 16px;
+    animation: fadeInDown 1s 0.2s ease forwards;
+    opacity: 0;
+  }
+  .title .line1 { color: #ffffff; display:block; }
+  .title .line2 {
+    display: block;
+    background: linear-gradient(90deg, #ff4b4b, #ff8c00, #00d4aa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .subtitle {
+    color: #8b949e;
+    font-size: clamp(13px, 2vw, 17px);
+    text-align: center;
+    max-width: 560px;
+    line-height: 1.7;
+    margin-bottom: 40px;
+    animation: fadeInDown 1s 0.4s ease forwards;
+    opacity: 0;
+    padding: 0 20px;
+  }
+  .stats-row {
+    display: flex;
+    gap: 28px;
+    margin-bottom: 44px;
+    animation: fadeInDown 1s 0.6s ease forwards;
+    opacity: 0;
+  }
+  .stat {
+    text-align: center;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px;
+    padding: 14px 22px;
+    backdrop-filter: blur(10px);
+  }
+  .stat .num {
+    font-size: 24px;
+    font-weight: 700;
+    color: #00d4aa;
+  }
+  .stat .label {
+    font-size: 11px;
+    color: #8b949e;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+  .btn {
+    pointer-events: all;
+    cursor: pointer;
+    padding: 16px 48px;
+    font-size: 16px;
+    font-weight: 700;
+    color: #020810;
+    background: linear-gradient(135deg, #00d4aa, #00a88a);
+    border: none;
+    border-radius: 50px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    box-shadow: 0 0 40px rgba(0,212,170,0.4),
+                0 0 80px rgba(0,212,170,0.15);
+    transition: all 0.3s ease;
+    animation: fadeInUp 1s 0.8s ease forwards, pulse 2.5s 2s infinite;
+    opacity: 0;
+    position: relative;
+    overflow: hidden;
+  }
+  .btn::before {
+    content: '';
+    position: absolute;
+    top: -50%; left: -50%;
+    width: 200%; height: 200%;
+    background: linear-gradient(45deg,
+      transparent 40%, rgba(255,255,255,0.3) 50%, transparent 60%);
+    transform: translateX(-100%);
+    transition: transform 0.6s ease;
+  }
+  .btn:hover::before { transform: translateX(100%); }
+  .btn:hover {
+    transform: scale(1.06);
+    box-shadow: 0 0 60px rgba(0,212,170,0.6),
+                0 0 120px rgba(0,212,170,0.25);
+  }
+  .btn:active { transform: scale(0.97); }
+  .orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(80px);
+    z-index: 1;
+    animation: orbFloat 8s ease-in-out infinite;
+  }
+  .orb1 {
+    width:400px; height:400px;
+    background: radial-gradient(circle, rgba(255,75,75,0.18) 0%, transparent 70%);
+    top:-100px; right:-100px;
+    animation-delay: 0s;
+  }
+  .orb2 {
+    width:350px; height:350px;
+    background: radial-gradient(circle, rgba(0,212,170,0.15) 0%, transparent 70%);
+    bottom:-80px; left:-80px;
+    animation-delay: -4s;
+  }
+  .orb3 {
+    width:280px; height:280px;
+    background: radial-gradient(circle, rgba(74,158,255,0.12) 0%, transparent 70%);
+    top:40%; left:10%;
+    animation-delay: -2s;
+  }
+  .hotspot-ring {
+    position: fixed;
+    border-radius: 50%;
+    border: 2px solid rgba(255,75,75,0.6);
+    animation: ring-pulse 2.5s ease-out infinite;
+    z-index: 5;
+  }
+  @keyframes ring-pulse {
+    0%   { transform: scale(0.5); opacity:1; }
+    100% { transform: scale(2.5); opacity:0; }
+  }
+  @keyframes fadeInDown {
+    from { opacity:0; transform:translateY(-20px); }
+    to   { opacity:1; transform:translateY(0); }
+  }
+  @keyframes fadeInUp {
+    from { opacity:0; transform:translateY(20px); }
+    to   { opacity:1; transform:translateY(0); }
+  }
+  @keyframes pulse {
+    0%,100% { box-shadow: 0 0 40px rgba(0,212,170,0.4), 0 0 80px rgba(0,212,170,0.15); }
+    50%      { box-shadow: 0 0 60px rgba(0,212,170,0.7), 0 0 120px rgba(0,212,170,0.3); }
+  }
+  @keyframes orbFloat {
+    0%,100% { transform: translate(0,0) scale(1); }
+    33%      { transform: translate(30px,-20px) scale(1.05); }
+    66%      { transform: translate(-20px,15px) scale(0.95); }
+  }
+  .particles-canvas {
+    position:fixed; top:0; left:0;
+    width:100%; height:100%;
+    z-index:2; pointer-events:none;
+  }
+  .corner-info {
+    position:fixed; bottom:24px; left:50%;
+    transform:translateX(-50%);
+    color:rgba(139,148,158,0.6);
+    font-size:12px;
+    letter-spacing:2px;
+    text-transform:uppercase;
+    z-index:20;
+    animation: fadeInDown 1s 1.2s ease forwards;
+    opacity:0;
+  }
+  .isro-badge {
+    position:fixed; top:20px; right:24px;
+    background:rgba(255,255,255,0.04);
+    border:1px solid rgba(255,255,255,0.1);
+    border-radius:8px;
+    padding:8px 16px;
+    color:#8b949e;
+    font-size:12px;
+    z-index:20;
+    letter-spacing:1px;
+  }
+  .scanline {
+    position:fixed; top:0; left:0;
+    width:100%; height:2px;
+    background: linear-gradient(90deg, transparent, #00d4aa, transparent);
+    animation: scan 4s linear infinite;
+    z-index:20;
+    opacity:0.4;
+  }
+  @keyframes scan {
+    from { top: -2px; }
+    to   { top: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Ambient orbs -->
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+<div class="orb orb3"></div>
+
+<!-- Scan line effect -->
+<div class="scanline"></div>
+
+<!-- ISRO badge -->
+<div class="isro-badge">ISRO Research Project 2025-26</div>
+
+<!-- 3D Globe Canvas -->
+<div id="canvas-container">
+  <canvas id="globe"></canvas>
+</div>
+
+<!-- Particle canvas -->
+<canvas class="particles-canvas" id="particles"></canvas>
+
+<!-- Hotspot pulse rings -->
+<div class="hotspot-ring" style="width:24px;height:24px;top:38%;left:62%;animation-delay:0s;"></div>
+<div class="hotspot-ring" style="width:20px;height:20px;top:45%;left:58%;animation-delay:0.8s;"></div>
+<div class="hotspot-ring" style="width:18px;height:18px;top:35%;left:65%;animation-delay:1.6s;"></div>
+
+<!-- Main overlay content -->
+<div class="overlay">
+  <div class="badge">AI / ML Powered</div>
+  <h1 class="title">
+    <span class="line1">Urban Heat Stress</span>
+    <span class="line2">Hotspot Prediction System</span>
+  </h1>
+  <p class="subtitle">
+    Satellite-driven AI platform for predicting, clustering, simulating
+    and optimizing urban heat stress hotspots across the globe using
+    Landsat 8, XGBoost &amp; SHAP analysis.
+  </p>
+  <div class="stats-row">
+    <div class="stat"><div class="num">50+</div><div class="label">World Cities</div></div>
+    <div class="stat"><div class="num">6</div><div class="label">AI Modules</div></div>
+    <div class="stat"><div class="num">100m</div><div class="label">Grid Scale</div></div>
+    <div class="stat"><div class="num">3</div><div class="label">Scenarios</div></div>
+  </div>
+  <button class="btn" onclick="launch()">&#9658; Launch Dashboard</button>
+</div>
+
+<div class="corner-info">Scroll or click to explore &nbsp; &bull; &nbsp; Powered by Google Earth Engine</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ── 3D Globe ──────────────────────────────────────────────────────────────────
+const canvas = document.getElementById('globe');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true });
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setSize(window.innerWidth, window.innerHeight);
+
+const scene  = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 1000);
+camera.position.set(0, 0, 2.8);
+
+// Stars
+const starGeo = new THREE.BufferGeometry();
+const starCount = 6000;
+const starPos = new Float32Array(starCount * 3);
+for(let i=0;i<starCount*3;i++) starPos[i] = (Math.random()-0.5)*200;
+starGeo.setAttribute('position', new THREE.BufferAttribute(starPos,3));
+const starMat = new THREE.PointsMaterial({color:0xffffff, size:0.12, transparent:true, opacity:0.7});
+scene.add(new THREE.Points(starGeo, starMat));
+
+// Earth sphere
+const earthGeo = new THREE.SphereGeometry(1, 64, 64);
+const earthMat = new THREE.MeshPhongMaterial({
+  color: 0x1a4a7a,
+  emissive: 0x0a1a3a,
+  specular: 0x4a9eff,
+  shininess: 25,
+  wireframe: false,
+});
+const earth = new THREE.Mesh(earthGeo, earthMat);
+scene.add(earth);
+
+// Continent dots (latitude/longitude grid)
+const continentPoints = [
+  // India region
+  [20,77],[22,79],[24,81],[26,83],[28,77],[18,74],[16,74],[23,87],[13,80],[12,77],
+  // East Asia
+  [35,135],[36,140],[37,127],[31,121],[23,113],[39,116],[30,120],[32,118],
+  // Europe
+  [51,-0.1],[48,2],[41,-4],[52,13],[41,12],[55,37],[40,22],[38,23],
+  // Africa
+  [30,31],[6,3],[-1,37],[-26,28],[15,32],[-4,15],[9,38],[5,-0.3],
+  // Americas
+  [40,-74],[34,-118],[41,-87],[30,-95],[19,-99],[-23,-46],[-22,-43],[-34,-58],[4,-74],[-12,-77],
+  // Australia
+  [-33,151],[-37,144],[-27,153]
+];
+
+const dotGeo  = new THREE.SphereGeometry(0.012, 6, 6);
+const dotMat  = new THREE.MeshBasicMaterial({ color: 0x2a6aaa });
+continentPoints.forEach(([lat,lon]) => {
+  const phi   = (90 - lat) * Math.PI/180;
+  const theta = (lon + 180) * Math.PI/180;
+  const dot   = new THREE.Mesh(dotGeo, dotMat);
+  dot.position.set(
+    -Math.sin(phi)*Math.cos(theta),
+     Math.cos(phi),
+     Math.sin(phi)*Math.sin(theta)
+  );
+  earth.add(dot);
+});
+
+// Heat hotspot markers (red glowing dots)
+const hotspots = [
+  [28.6,77.2,'Delhi'],[19.1,72.9,'Mumbai'],[22.6,88.4,'Kolkata'],
+  [30,31.2,'Cairo'],[6.5,3.4,'Lagos'],[24.7,46.7,'Riyadh'],
+  [25.2,55.3,'Dubai'],[31.2,121.5,'Shanghai'],[35.7,139.7,'Tokyo'],
+  [40.7,-74,'New York'],[34,-118.3,'LA'],[-23.5,-46.6,'Sao Paulo'],
+  [51.5,-0.1,'London'],[48.9,2.4,'Paris'],[55.8,37.6,'Moscow'],
+];
+const hotGeo = new THREE.SphereGeometry(0.022, 8, 8);
+hotspots.forEach(([lat,lon]) => {
+  const colors = [0xff2200, 0xff5500, 0xff8800, 0xffaa00];
+  const col = colors[Math.floor(Math.random()*colors.length)];
+  const hotMat = new THREE.MeshBasicMaterial({ color:col });
+  const phi   = (90-lat)*Math.PI/180;
+  const theta = (lon+180)*Math.PI/180;
+  const dot   = new THREE.Mesh(hotGeo, hotMat);
+  dot.position.set(
+    -Math.sin(phi)*Math.cos(theta),
+     Math.cos(phi),
+     Math.sin(phi)*Math.sin(theta)
+  );
+  earth.add(dot);
+});
+
+// Atmosphere glow
+const atmosGeo = new THREE.SphereGeometry(1.08, 64, 64);
+const atmosMat = new THREE.MeshPhongMaterial({
+  color: 0x1a6aff,
+  transparent: true,
+  opacity: 0.08,
+  side: THREE.BackSide,
+});
+scene.add(new THREE.Mesh(atmosGeo, atmosMat));
+
+// Heat glow layer
+const heatGeo = new THREE.SphereGeometry(1.04, 64, 64);
+const heatMat = new THREE.MeshPhongMaterial({
+  color: 0xff4400,
+  transparent: true,
+  opacity: 0.04,
+  side: THREE.BackSide,
+});
+scene.add(new THREE.Mesh(heatGeo, heatMat));
+
+// Lighting
+scene.add(new THREE.AmbientLight(0x334466, 0.8));
+const sun = new THREE.DirectionalLight(0xffffff, 1.2);
+sun.position.set(5, 3, 5);
+scene.add(sun);
+const rimLight = new THREE.DirectionalLight(0x00d4aa, 0.4);
+rimLight.position.set(-5, -2, -5);
+scene.add(rimLight);
+
+// Mouse interaction
+let mouseX=0, mouseY=0;
+document.addEventListener('mousemove', e => {
+  mouseX = (e.clientX/window.innerWidth  - 0.5) * 0.5;
+  mouseY = (e.clientY/window.innerHeight - 0.5) * 0.5;
+});
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// Animate
+let t = 0;
+function animate() {
+  requestAnimationFrame(animate);
+  t += 0.005;
+  earth.rotation.y += 0.003;
+  earth.rotation.x += (mouseY * 0.3 - earth.rotation.x) * 0.05;
+  earth.rotation.y += (mouseX * 0.3) * 0.05;
+  // Pulse heat glow
+  heatMat.opacity = 0.03 + Math.sin(t*2) * 0.015;
+  renderer.render(scene, camera);
+}
+animate();
+
+// ── Particle System ───────────────────────────────────────────────────────────
+const pc = document.getElementById('particles');
+const ctx = pc.getContext('2d');
+pc.width  = window.innerWidth;
+pc.height = window.innerHeight;
+
+const particles = [];
+for(let i=0;i<80;i++) particles.push({
+  x: Math.random()*pc.width,
+  y: Math.random()*pc.height,
+  r: Math.random()*2+0.5,
+  vx: (Math.random()-0.5)*0.4,
+  vy: -(Math.random()*0.5+0.2),
+  life: Math.random(),
+  col: Math.random() > 0.5 ? '255,75,75' : '0,212,170'
+});
+
+function drawParticles() {
+  ctx.clearRect(0,0,pc.width,pc.height);
+  particles.forEach(p => {
+    p.x += p.vx; p.y += p.vy; p.life -= 0.003;
+    if(p.life <= 0 || p.y < 0) {
+      p.x=Math.random()*pc.width; p.y=pc.height;
+      p.life=Math.random()*0.5+0.5;
+    }
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+    ctx.fillStyle = `rgba(${p.col},${p.life*0.6})`;
+    ctx.fill();
+  });
+  requestAnimationFrame(drawParticles);
+}
+drawParticles();
+
+// ── Launch button ─────────────────────────────────────────────────────────────
+function launch() {
+  // Signal Streamlit via URL hash and auto-click a hidden element
+  window.parent.postMessage({type:'streamlit:setComponentValue', value:true}, '*');
+}
+</script>
+</body>
+</html>
+    """, height=700, scrolling=False)
+
+    # Centered Streamlit launch button below the 3D scene
+    st.markdown("<br>", unsafe_allow_html=True)
+    col1, col2, col3 = st.columns([2,1,2])
+    with col2:
+        if st.button("🚀 Launch Dashboard", type="primary", use_container_width=True):
+            st.session_state["show_landing"] = False
+            st.rerun()
+
+
 st.set_page_config(
     page_title="Urban Heat Stress AI System",
     page_icon="🌡️",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
     menu_items={
-        "Get Help"   : "https://github.com/",
-        "About"      : "AI/ML Urban Heat Stress Hotspot Prediction System — ISRO Project",
+        "Get Help"   : "https://github.com/AS-youKnow/urban-heat-stress",
+        "About"      : "AI/ML Urban Heat Stress Hotspot Prediction System — ISRO Project 2025-26",
     },
 )
+
 
 # ─── GLOBAL CSS & THEME ───────────────────────────────────────────────────────
 st.markdown("""
@@ -1167,4 +1645,11 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    # Show landing page on first visit, then the main dashboard
+    if "show_landing" not in st.session_state:
+        st.session_state["show_landing"] = True
+
+    if st.session_state["show_landing"]:
+        render_landing_page()
+    else:
+        main()
