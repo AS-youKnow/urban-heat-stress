@@ -287,7 +287,7 @@ for(let i=0;i<N*3;i+=3){
 }
 starGeo.setAttribute('position',new THREE.BufferAttribute(pos,3));
 starGeo.setAttribute('color',   new THREE.BufferAttribute(col,3));
-const starMat=new THREE.PointsMaterial({size:0.14,vertexColors:true,transparent:true,opacity:0.85});
+const starMat=new THREE.PointsMaterial({size:0.04,vertexColors:true,transparent:true,opacity:0.55});
 scene.add(new THREE.Points(starGeo,starMat));
 
 // ── Texture loader ─────────────────────────────────────────
@@ -299,10 +299,10 @@ const earthGeo = new THREE.SphereGeometry(1, 80, 80);
 const earthMat = new THREE.MeshPhongMaterial({
   map:         loader.load('https://unpkg.com/three-globe@2.30.11/example/img/earth-blue-marble.jpg'),
   bumpMap:     loader.load('https://unpkg.com/three-globe@2.30.11/example/img/earth-topology.png'),
-  bumpScale:   0.06,
+  bumpScale:   0.0035,
   specularMap: loader.load('https://unpkg.com/three-globe@2.30.11/example/img/earth-water.png'),
-  specular:    new THREE.Color(0x336688),
-  shininess:   22,
+  specular:    new THREE.Color(0x222222),
+  shininess:   25,
 });
 const earth = new THREE.Mesh(earthGeo, earthMat);
 scene.add(earth);
@@ -312,40 +312,90 @@ const cloudGeo = new THREE.SphereGeometry(1.018, 80, 80);
 const cloudMat = new THREE.MeshPhongMaterial({
   map:        loader.load('https://unpkg.com/three-globe@2.30.11/example/img/earth-clouds.png'),
   transparent:true,
-  opacity:    0.38,
+  opacity:    0.45,
   depthWrite: false,
 });
 const clouds = new THREE.Mesh(cloudGeo, cloudMat);
 scene.add(clouds);
 
-// ── Night-lights glow (additive blend on dark side) ────────
-const nightMat = new THREE.MeshBasicMaterial({
-  map:         loader.load('https://unpkg.com/three-globe@2.30.11/example/img/earth-night.jpg'),
-  blending:    THREE.AdditiveBlending,
+// ── Night-lights glow (directional additive blend) ─────────
+const nightMat = new THREE.ShaderMaterial({
+  uniforms: {
+    nightTexture: { value: loader.load('https://unpkg.com/three-globe@2.30.11/example/img/earth-night.jpg') },
+    sunDir: { value: new THREE.Vector3(5, 2, 4).normalize() }
+  },
+  vertexShader: `
+    varying vec3 vWorldNormal;
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      vWorldNormal = normalize(vec3(modelMatrix * vec4(normal, 0.0)));
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform sampler2D nightTexture;
+    uniform vec3 sunDir;
+    varying vec3 vWorldNormal;
+    varying vec2 vUv;
+    void main() {
+      vec4 nightColor = texture2D(nightTexture, vUv);
+      vec3 worldNormal = normalize(vWorldNormal);
+      float sunDot = dot(worldNormal, sunDir);
+      // Fade night lights in on the dark side
+      float nightIntensity = smoothstep(0.0, -0.25, sunDot);
+      gl_FragColor = nightColor * nightIntensity * 1.5;
+    }
+  `,
+  blending: THREE.AdditiveBlending,
   transparent: true,
-  opacity:     0.55,
-  depthWrite:  false,
+  depthWrite: false,
 });
 const nightMesh = new THREE.Mesh(new THREE.SphereGeometry(1.001,80,80), nightMat);
 scene.add(nightMesh);
 
-// ── Atmosphere (Fresnel-like glow) ─────────────────────────
-const atmosMat = new THREE.MeshPhongMaterial({
-  color:       0x1166dd,
+// ── Atmosphere (Realistic Fresnel Glow) ────────────────────
+const atmosMat = new THREE.ShaderMaterial({
+  uniforms: {
+    sunDir: { value: new THREE.Vector3(5, 2, 4).normalize() }
+  },
+  vertexShader: `
+    varying vec3 vNormal;
+    varying vec3 vWorldNormal;
+    void main() {
+      vNormal = normalize(normalMatrix * normal);
+      vWorldNormal = normalize(vec3(modelMatrix * vec4(normal, 0.0)));
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform vec3 sunDir;
+    varying vec3 vNormal;
+    varying vec3 vWorldNormal;
+    void main() {
+      vec3 n = normalize(vNormal);
+      // Fresnel effect: bright at silhouette edges, dark in the middle
+      float fresnel = pow(1.0 + n.z, 3.8);
+      
+      // Align with the sun so it only glows on the daylit side
+      vec3 worldNormal = normalize(vWorldNormal);
+      float sunDot = dot(worldNormal, sunDir);
+      float sunIntensity = smoothstep(-0.25, 0.35, sunDot);
+      
+      float finalGlow = fresnel * sunIntensity;
+      
+      // Beautiful deep sky blue changing to soft white at the edge
+      vec3 color = mix(vec3(0.15, 0.45, 1.0), vec3(0.65, 0.85, 1.0), pow(finalGlow, 2.0));
+      gl_FragColor = vec4(color, 1.0) * finalGlow * 1.1;
+    }
+  `,
+  blending: THREE.AdditiveBlending,
+  side: THREE.BackSide,
   transparent: true,
-  opacity:     0.065,
-  side:        THREE.BackSide,
+  depthWrite: false,
 });
-scene.add(new THREE.Mesh(new THREE.SphereGeometry(1.12,64,64), atmosMat));
-
-// Inner blue rim
-const rimMat = new THREE.MeshPhongMaterial({
-  color:       0x2299ff,
-  transparent: true,
-  opacity:     0.04,
-  side:        THREE.BackSide,
-});
-scene.add(new THREE.Mesh(new THREE.SphereGeometry(1.06,64,64), rimMat));
+const atmosMesh = new THREE.Mesh(new THREE.SphereGeometry(1.085, 80, 80), atmosMat);
+scene.add(atmosMesh);
 
 // ── Heat stress glow (pulsing red rim on Earth surface) ────
 const heatMat = new THREE.MeshBasicMaterial({
@@ -379,14 +429,14 @@ hotspots.forEach(([lat,lon])=>{
 });
 
 // ── Lighting ───────────────────────────────────────────────
-scene.add(new THREE.AmbientLight(0x445566, 0.6));
-const sun = new THREE.DirectionalLight(0xfff8f0, 1.4);
+scene.add(new THREE.AmbientLight(0x222222, 0.2));
+const sun = new THREE.DirectionalLight(0xffffff, 1.8);
 sun.position.set(5, 2, 4);
 scene.add(sun);
-const fill = new THREE.DirectionalLight(0x2255aa, 0.25);
+const fill = new THREE.DirectionalLight(0x2255aa, 0.05);
 fill.position.set(-4, -1, -3);
 scene.add(fill);
-const rimL = new THREE.DirectionalLight(0x00d4aa, 0.15);
+const rimL = new THREE.DirectionalLight(0x00d4aa, 0.02);
 rimL.position.set(-3, 3, -5);
 scene.add(rimL);
 
