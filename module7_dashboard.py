@@ -93,6 +93,15 @@ def render_landing_page():
     footer { visibility: hidden; }
     .stApp { padding: 0 !important; }
     .block-container { padding: 0 !important; max-width: 100% !important; }
+
+    /* Delay Streamlit button appearance for 7 seconds to sync with 3D intro */
+    .stButton {
+        animation: stFadeIn 1.5s 6.8s both;
+    }
+    @keyframes stFadeIn {
+        from { opacity: 0; pointer-events: none; transform: translateY(20px); }
+        to { opacity: 1; pointer-events: auto; transform: translateY(0); }
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -148,13 +157,13 @@ def render_landing_page():
     border-radius:50px;padding:7px 20px;
     color:#a5b4fc;font-size:11px;letter-spacing:3px;text-transform:uppercase;
     margin-bottom:24px;
-    animation:fadeUp 1s 0.1s ease both;
+    animation:fadeUp 1s 6.1s ease both;
     backdrop-filter:blur(10px);
   }
   .title {
     font-size:clamp(30px,5.5vw,62px);
     font-weight:900;text-align:center;line-height:1.1;margin-bottom:16px;
-    animation:fadeUp 1s 0.25s ease both;
+    animation:fadeUp 1s 6.25s ease both;
     letter-spacing:-0.02em;
   }
   .title .t1 { color:#fff; display:block; }
@@ -163,17 +172,17 @@ def render_landing_page():
     background:linear-gradient(90deg,#f43f5e,#fb923c,#fbbf24,#2dd4bf,#818cf8);
     background-size:200%;
     -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
-    animation:fadeUp 1s 0.25s ease both, gradShift 4s linear infinite;
+    animation:fadeUp 1s 6.25s ease both, gradShift 4s linear infinite;
   }
   @keyframes gradShift { 0%{background-position:0%} 100%{background-position:200%} }
   .subtitle {
     color:#64748b;font-size:clamp(13px,1.8vw,17px);text-align:center;
     max-width:550px;line-height:1.75;margin-bottom:40px;padding:0 20px;
-    animation:fadeUp 1s 0.4s ease both;
+    animation:fadeUp 1s 6.4s ease both;
   }
   .stats {
     display:flex;gap:20px;margin-bottom:44px;flex-wrap:wrap;justify-content:center;
-    animation:fadeUp 1s 0.55s ease both;
+    animation:fadeUp 1s 6.55s ease both;
   }
   .stat {
     text-align:center;
@@ -185,29 +194,11 @@ def render_landing_page():
   }
   .stat .n { font-size:26px;font-weight:800;background:linear-gradient(135deg,#2dd4bf,#818cf8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text; }
   .stat .l { font-size:10px;color:#64748b;letter-spacing:1.5px;text-transform:uppercase;margin-top:4px;font-weight:600; }
-  .btn {
-    pointer-events:all;cursor:pointer;
-    padding:17px 52px;font-size:15px;font-weight:800;
-    color:#06080f;
-    background:linear-gradient(135deg,#2dd4bf,#818cf8);
-    border:none;border-radius:50px;letter-spacing:0.5px;text-transform:uppercase;
-    box-shadow:0 0 40px rgba(45,212,191,0.4),0 0 80px rgba(129,140,248,0.2);
-    transition:all 0.3s ease;
-    animation:fadeUp 1s 0.7s ease both, glow 2.5s 2s infinite;
-    position:relative;overflow:hidden;
-  }
-  .btn::before { content:'';position:absolute;top:-50%;left:-60%;width:40%;height:200%;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.35),transparent);transform:skewX(-20deg);animation:shine 3s 2s infinite; }
-  @keyframes shine { 0%,100%{left:-60%} 50%{left:120%} }
-  .btn:hover { transform:scale(1.05) translateY(-2px);box-shadow:0 0 60px rgba(45,212,191,0.6),0 0 120px rgba(129,140,248,0.35); }
-  .btn:active { transform:scale(0.98); }
-  @keyframes glow { 0%,100%{box-shadow:0 0 40px rgba(45,212,191,0.4),0 0 80px rgba(129,140,248,0.2)} 50%{box-shadow:0 0 60px rgba(45,212,191,0.7),0 0 120px rgba(129,140,248,0.4)} }
-  @keyframes fadeUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
-
   /* Tech tags */
-  .tech-row { display:flex;gap:10px;margin-top:20px;justify-content:center;flex-wrap:wrap;animation:fadeUp 1s 0.85s ease both;pointer-events:none; }
+  .tech-row { display:flex;gap:10px;margin-top:20px;justify-content:center;flex-wrap:wrap;animation:fadeUp 1s 6.85s ease both;pointer-events:none; }
   .tag { background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:6px;padding:4px 12px;font-size:11px;color:#475569;letter-spacing:1px; }
 
-  .bottom-hint { position:fixed;bottom:22px;left:50%;transform:translateX(-50%);color:rgba(100,116,139,0.5);font-size:11px;letter-spacing:2px;text-transform:uppercase;z-index:30;animation:fadeUp 1s 1.1s ease both; }
+  .bottom-hint { position:fixed;bottom:22px;left:50%;transform:translateX(-50%);color:rgba(100,116,139,0.5);font-size:11px;letter-spacing:2px;text-transform:uppercase;z-index:30;animation:fadeUp 1s 7.1s ease both; }
 </style>
 </head>
 <body>
@@ -252,7 +243,6 @@ def render_landing_page():
     <div class="stat"><div class="n">GEE</div><div class="l">Satellite</div></div>
     <div class="stat"><div class="n">3</div><div class="l">Scenarios</div></div>
   </div>
-  <button class="btn" id="launchBtn">&#9658;&nbsp; Launch Dashboard</button>
   <div class="tech-row">
     <span class="tag">XGBoost</span>
     <span class="tag">SHAP</span>
@@ -414,16 +404,43 @@ window.addEventListener('resize',()=>{
 
 // ── Animate ────────────────────────────────────────────────
 let t=0;
+let startTime = Date.now();
+
 (function animate(){
   requestAnimationFrame(animate);
+  let elapsed = (Date.now() - startTime) / 1000; // time in seconds
   t+=0.004;
-  earth.rotation.y      += 0.0025;
-  clouds.rotation.y     += 0.0028;   // clouds drift slightly faster
-  nightMesh.rotation.y   = earth.rotation.y;
+
+  // Cinematic 3D intro for first 6.5 seconds
+  if (elapsed < 6.5) {
+    let progress = elapsed / 6.5;
+    let ease = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+    
+    // Camera zooms out from very close
+    camera.position.z = 1.05 + ease * 1.8;
+    camera.position.y = 1.0 - ease * 1.0;
+    
+    // Earth spins fast then slows down
+    earth.rotation.y += (1 - ease) * 0.05 + 0.0025;
+  } else {
+    // Normal steady rotation
+    camera.position.z = 2.85;
+    camera.position.y = 0;
+    earth.rotation.y += 0.0025;
+  }
+
+  clouds.rotation.y     = earth.rotation.y * 1.05;
+  nightMesh.rotation.y  = earth.rotation.y;
+  
   earth.rotation.x  += (my*.25 - earth.rotation.x)*.04;
   clouds.rotation.x  = earth.rotation.x;
   nightMesh.rotation.x = earth.rotation.x;
-  earth.rotation.y  += mx*.025;
+  
+  // Apply mouse tilt ONLY after the intro
+  if (elapsed >= 6.5) {
+     earth.rotation.y  += mx*.025;
+  }
+
   // Pulse heat glow
   heatMat.opacity = 0.018+Math.sin(t*1.8)*.012;
   renderer.render(scene,camera);
@@ -454,12 +471,6 @@ for(let i=0;i<100;i++) parts.push({
   requestAnimationFrame(dp);
 })();
 
-// ============================================================
-//  LAUNCH BUTTON  — Streamlit bridge
-// ============================================================
-document.getElementById('launchBtn').addEventListener('click', ()=>{
-  window.parent.postMessage({type:'streamlit:setComponentValue',value:true},'*');
-});
 </script>
 </body>
 </html>
@@ -468,7 +479,7 @@ document.getElementById('launchBtn').addEventListener('click', ()=>{
     st.markdown("<br>", unsafe_allow_html=True)
     col1, col2, col3 = st.columns([2.5, 1, 2.5])
     with col2:
-        if st.button("🚀 Launch Dashboard", type="primary", use_container_width=True):
+        if st.button("🚀 Get Started", type="primary", use_container_width=True):
             st.session_state["show_landing"] = False
             st.rerun()
 
