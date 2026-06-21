@@ -288,7 +288,8 @@ for(let i=0;i<N*3;i+=3){
 starGeo.setAttribute('position',new THREE.BufferAttribute(pos,3));
 starGeo.setAttribute('color',   new THREE.BufferAttribute(col,3));
 const starMat=new THREE.PointsMaterial({size:0.04,vertexColors:true,transparent:true,opacity:0.55});
-scene.add(new THREE.Points(starGeo,starMat));
+const starPoints = new THREE.Points(starGeo,starMat);
+scene.add(starPoints);
 
 // ── Texture loader ─────────────────────────────────────────
 const loader = new THREE.TextureLoader();
@@ -428,6 +429,131 @@ hotspots.forEach(([lat,lon])=>{
   earth.add(m);
 });
 
+// ── Glowing Cyan Orbit Lines & Satellites ──────────────────
+const orbitGroup1 = new THREE.Group();
+const orbitGroup2 = new THREE.Group();
+const orbitGroup3 = new THREE.Group();
+
+scene.add(orbitGroup1);
+scene.add(orbitGroup2);
+scene.add(orbitGroup3);
+
+// Tilted rotations for orbits
+orbitGroup1.rotation.set(0.6, 0.2, 0.4);
+orbitGroup2.rotation.set(-0.5, 0.3, -0.6);
+orbitGroup3.rotation.set(0.2, 0.9, 0.1);
+
+const orbitMat = new THREE.MeshBasicMaterial({
+  color: 0x00f3ff,
+  transparent: true,
+  opacity: 0.25,
+  side: THREE.DoubleSide
+});
+
+// Orbit path geometries (using TorusGeometry for glowing wireframe lines)
+const ringGeo1 = new THREE.TorusGeometry(1.32, 0.003, 8, 100);
+const ringGeo2 = new THREE.TorusGeometry(1.38, 0.003, 8, 100);
+const ringGeo3 = new THREE.TorusGeometry(1.44, 0.003, 8, 100);
+
+orbitGroup1.add(new THREE.Mesh(ringGeo1, orbitMat));
+orbitGroup2.add(new THREE.Mesh(ringGeo2, orbitMat));
+orbitGroup3.add(new THREE.Mesh(ringGeo3, orbitMat));
+
+// Satellites (pivoted groups for circular movement)
+const satPivot1 = new THREE.Group();
+const satPivot2 = new THREE.Group();
+const satPivot3 = new THREE.Group();
+
+orbitGroup1.add(satPivot1);
+orbitGroup2.add(satPivot2);
+orbitGroup3.add(satPivot3);
+
+const satMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
+const satGeo = new THREE.SphereGeometry(0.012, 12, 12);
+
+const sat1 = new THREE.Mesh(satGeo, satMat);
+sat1.position.x = 1.32;
+satPivot1.add(sat1);
+
+const sat2 = new THREE.Mesh(satGeo, satMat);
+sat2.position.x = 1.38;
+satPivot2.add(sat2);
+
+const sat3 = new THREE.Mesh(satGeo, satMat);
+sat3.position.x = 1.44;
+satPivot3.add(sat3);
+
+// ── Holographic Rings ──────────────────────────────────────
+const holoGeo = new THREE.RingGeometry(1.48, 1.485, 64);
+const holoMat = new THREE.MeshBasicMaterial({
+  color: 0x00f3ff,
+  side: THREE.DoubleSide,
+  transparent: true,
+  opacity: 0.12,
+  depthWrite: false
+});
+const holoRing = new THREE.Mesh(holoGeo, holoMat);
+holoRing.rotation.x = Math.PI / 2;
+scene.add(holoRing);
+
+const holoGeo2 = new THREE.RingGeometry(1.58, 1.583, 64);
+const holoMat2 = new THREE.MeshBasicMaterial({
+  color: 0x00f3ff,
+  side: THREE.DoubleSide,
+  transparent: true,
+  opacity: 0.06,
+  depthWrite: false
+});
+const holoRing2 = new THREE.Mesh(holoGeo2, holoMat2);
+holoRing2.rotation.x = Math.PI / 2;
+scene.add(holoRing2);
+
+// ── Radar-style pulsing hotspots ──────────────────────────
+const radarPings = [];
+const pingGeo = new THREE.RingGeometry(0, 0.05, 16);
+const pingMatTemplate = new THREE.MeshBasicMaterial({
+  color: 0x00f3ff,
+  side: THREE.DoubleSide,
+  transparent: true,
+  opacity: 0.8,
+  depthWrite: false
+});
+
+const radarHotspots = [
+  [28.6, 77.2],   // New Delhi
+  [19.1, 72.9],   // Mumbai
+  [13.1, 80.3],   // Chennai
+  [12.9, 77.6],   // Bengaluru
+  [-33.9, 151.2], // Sydney
+  [40.7, -74.0],  // New York
+  [51.5, -0.1]    // London
+];
+
+radarHotspots.forEach(([lat, lon]) => {
+  const pingMat = pingMatTemplate.clone();
+  const ping = new THREE.Mesh(pingGeo, pingMat);
+  
+  const phi = (90 - lat) * Math.PI / 180;
+  const theta = (lon + 180) * Math.PI / 180;
+  const pos = new THREE.Vector3(
+    -Math.sin(phi) * Math.cos(theta),
+    Math.cos(phi),
+    Math.sin(phi) * Math.sin(theta)
+  );
+  ping.position.copy(pos.clone().multiplyScalar(1.003));
+  ping.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), pos.clone().normalize());
+  
+  ping.userData = {
+    scale: 1.0,
+    speed: 0.015 + Math.random() * 0.01,
+    maxScale: 2.2 + Math.random() * 1.2,
+    material: pingMat
+  };
+  
+  earth.add(ping); // Add to earth so it rotates and tilts naturally with the planet
+  radarPings.push(ping);
+});
+
 // ── Lighting ───────────────────────────────────────────────
 scene.add(new THREE.AmbientLight(0x222222, 0.2));
 const sun = new THREE.DirectionalLight(0xffffff, 1.8);
@@ -461,23 +587,73 @@ let startTime = Date.now();
   let elapsed = (Date.now() - startTime) / 1000; // time in seconds
   t+=0.004;
 
-  // Cinematic 3D intro for first 6.5 seconds
+  // Cinematic camera path & zoom
+  let camRadius = 2.85;
   if (elapsed < 6.5) {
     let progress = elapsed / 6.5;
     let ease = 1 - Math.pow(1 - progress, 3); // ease-out cubic
     
-    // Camera zooms out from very close
-    camera.position.z = 1.05 + ease * 1.8;
+    // Camera zooms out from very close, slowly rotating
+    let currentRadius = 1.05 + ease * (camRadius - 1.05);
+    let orbitAngle = elapsed * 0.05;
+    camera.position.x = Math.sin(orbitAngle) * currentRadius;
+    camera.position.z = Math.cos(orbitAngle) * currentRadius;
     camera.position.y = 1.0 - ease * 1.0;
     
     // Earth spins fast then slows down
     earth.rotation.y += (1 - ease) * 0.05 + 0.0025;
   } else {
+    // Cinematic camera orbiting slowly around Earth with Y-bobbing
+    let orbitAngle = (6.5 * 0.05) + (elapsed - 6.5) * 0.055;
+    camera.position.x = Math.sin(orbitAngle) * camRadius;
+    camera.position.z = Math.cos(orbitAngle) * camRadius;
+    camera.position.y = Math.sin(elapsed * 0.12) * 0.22; // subtle cinematic tilt
+    
     // Normal steady rotation
-    camera.position.z = 2.85;
-    camera.position.y = 0;
     earth.rotation.y += 0.0025;
   }
+  camera.lookAt(0, 0, 0);
+
+  // Parallax starfield rotation responding to mouse Client coords
+  starPoints.rotation.y = mx * 0.06;
+  starPoints.rotation.x = my * 0.06;
+
+  // Animate Satellites along their respective orbits
+  satPivot1.rotation.z += 0.012;
+  satPivot2.rotation.z += 0.008;
+  satPivot3.rotation.z += 0.010;
+
+  // Slow rotation & scale pulse for holographic rings
+  holoRing.rotation.z -= 0.002;
+  holoRing.scale.setScalar(1.0 + Math.sin(t * 0.65) * 0.035);
+  holoRing2.rotation.z += 0.001;
+  holoRing2.scale.setScalar(1.0 + Math.sin(t * 0.45) * 0.02);
+
+  // Animate Radar pulsing hotspots
+  radarPings.forEach(ping => {
+    ping.userData.scale += ping.userData.speed;
+    if (ping.userData.scale > ping.userData.maxScale) {
+      ping.userData.scale = 1.0;
+    }
+    ping.scale.set(ping.userData.scale, ping.userData.scale, 1.0);
+    let progress = (ping.userData.scale - 1.0) / (ping.userData.maxScale - 1.0);
+    ping.userData.material.opacity = 0.8 * (1.0 - progress);
+  });
+
+  // Bobbing anti-gravity floating displacement
+  let floatY = Math.sin(elapsed * 0.55) * 0.035;
+  let floatX = Math.cos(elapsed * 0.35) * 0.015;
+  earth.position.set(floatX, floatY, 0);
+  clouds.position.set(floatX, floatY, 0);
+  nightMesh.position.set(floatX, floatY, 0);
+  atmosMesh.position.set(floatX, floatY, 0);
+  heatGlow.position.set(floatX, floatY, 0);
+  
+  orbitGroup1.position.set(floatX, floatY, 0);
+  orbitGroup2.position.set(floatX, floatY, 0);
+  orbitGroup3.position.set(floatX, floatY, 0);
+  holoRing.position.set(floatX, floatY, 0);
+  holoRing2.position.set(floatX, floatY, 0);
 
   clouds.rotation.y     = earth.rotation.y * 1.05;
   nightMesh.rotation.y  = earth.rotation.y;
